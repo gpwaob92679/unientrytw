@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -29,6 +30,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'db.apps.DbConfig',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -72,8 +74,12 @@ WSGI_APPLICATION = 'unientrytw.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'unientrytw',
+        'USER': os.getenv('UNIENTRYTW_DB_USER', 'admin'),
+        'PASSWORD': os.getenv('UNIENTRYTW_DB_PASSWORD', ''),
+        'HOST': '127.0.0.1',
+        'PORT': '5432',
     }
 }
 
@@ -104,7 +110,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Taipei'
 
 USE_I18N = True
 
