@@ -3,11 +3,13 @@ import json
 import logging
 import os
 from pathlib import Path
+import re
 import sys
 
 import bs4
 import django
 import requests_cache
+import xlrd
 
 import third_party.cf_clearance_scraper.main as cf_clearance_scraper
 
@@ -20,7 +22,7 @@ logger.setLevel('INFO')
 logger.addHandler(logging.StreamHandler(sys.stderr))
 
 
-class UniversityScraper:
+class WwwComTwScraper:
 
     def __init__(self):
         self.session = requests_cache.CachedSession(
@@ -99,9 +101,42 @@ class UniversityScraper:
             department.save()
 
 
+class CeecWorkbookScraper:
+
+    def __init__(self):
+        self.session = requests_cache.CachedSession('ceec_http_cache')
+
+    def get_divisions_and_rooms(self) -> None:
+        response = self.session.get('https://www.ceec.edu.tw/files/file_pool/1/0N117365953363303233/%E5%90%84%E8%80%83%E5%8D%80%E5%8F%8A%E5%90%84%E5%88%86%E5%8D%80%E8%A9%A6%E5%A0%B4%E8%80%83%E7%94%9F%E4%BA%BA%E6%95%B8%E7%B5%B1%E8%A8%88%E8%A1%A8.xls')  # yapf: disable
+        workbook = xlrd.open_workbook(file_contents=response.content)
+        sheet = workbook.sheet_by_index(0)
+        for row in sheet.get_rows():
+            if row[1].ctype == xlrd.XL_CELL_NUMBER:
+                division_id = int(row[1].value)
+                division_name = re.sub(r'^\([^()]*\)', '', row[2].value)
+                try:
+                    division = db.models.ExamDivision.objects.get(
+                        id=division_id)
+                except db.models.ExamDivision.DoesNotExist:
+                    division = db.models.ExamDivision(id=division_id,
+                                                      name=division_name)
+                    division.save()
+                logger.info(division)
+
+                rooms = range(int(row[3].value), int(row[4].value))
+                logger.info('Rooms: [%s, %s]', rooms.start, rooms.stop)
+                for room_id in rooms:
+                    room = db.models.ExamRoom(id=room_id, division=division)
+                    room.save()
+                    logger.debug(room)
+
+
 def main():
-    scraper = UniversityScraper()
-    scraper.get_schools(112)
+    web_scraper = WwwComTwScraper()
+    web_scraper.get_schools(112)
+
+    workbook_scraper = CeecWorkbookScraper()
+    workbook_scraper.get_divisions_and_rooms()
 
 
 if __name__ == '__main__':
