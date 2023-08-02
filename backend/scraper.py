@@ -63,11 +63,16 @@ class WwwComTwScraper:
     def __del__(self):
         self.session.close()
 
-    def get_schools(self, year: int | str):
-        response = self.session.get(
-            f'https://www.com.tw/cross/university_list{year}.html')
+    def _get_main_table(self, url: str) -> bs4.Tag:
+        response = self.session.get(url)
         soup = bs4.BeautifulSoup(response.text, 'html.parser')
-        table = soup.find('table', {'id': 'table1'})
+        return soup.find('div', {
+            'class': 'homepagetitle'
+        }).find_next_sibling('table')
+
+    def get_schools(self, year: int | str):
+        table = self._get_main_table(
+            f'https://www.com.tw/cross/university_list{year}.html')
         for td in table.find_all('td', {
                 'align': 'center',
                 'id': 'university_list_row_height'
@@ -87,10 +92,8 @@ class WwwComTwScraper:
     def get_departments(self, school_id: str, year: int | str) -> None:
         school = db.models.School.objects.get(id=school_id)
 
-        response = self.session.get(
+        table = self._get_main_table(
             f'https://www.com.tw/cross/university_{school_id}_{year}.html')
-        soup = bs4.BeautifulSoup(response.text, 'html.parser')
-        table = soup.find('table', {'id': 'table1'})
         for tr_department in table.find_all(
                 lambda tr: tr.name == 'tr' and len(tr.find_all('td')) == 5):
             tds = tr_department.find_all('td')
