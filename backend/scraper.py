@@ -87,21 +87,19 @@ class WwwComTwScraper:
                 }).next_element.strip(' \n')
             logger.info(school)
             school.save()
-            self.get_departments(school.id, year)
 
-    def get_departments(self, school_id: str, year: int | str) -> None:
-        school = db.models.School.objects.get(id=school_id)
-
-        table = self._get_main_table(
-            f'https://www.com.tw/cross/university_{school_id}_{year}.html')
-        for tr_department in table.find_all(
-                lambda tr: tr.name == 'tr' and len(tr.find_all('td')) == 5):
-            tds = tr_department.find_all('td')
-            department = db.models.Department(id=tds[0].text[1:-1],
-                                              name=tds[1].text,
-                                              school=school)
-            logger.info(department)
-            department.save()
+    def get_departments(self, year: int | str) -> None:
+        for school in db.models.School.objects.all():
+            table = self._get_main_table(
+                f'https://www.com.tw/cross/university_{school.id}_{year}.html')
+            for tr_department in table.find_all(
+                    lambda tr: tr.name == 'tr' and len(tr.find_all('td')) == 5):
+                tds = tr_department.find_all('td')
+                department = db.models.Department(id=tds[0].text[1:-1],
+                                                  name=tds[1].text,
+                                                  school=school)
+                logger.info(department)
+                department.save()
 
 
 class CeecWorkbookScraper:
@@ -137,6 +135,7 @@ class CeecWorkbookScraper:
 def main():
     web_scraper = WwwComTwScraper()
     web_scraper.get_schools(112)
+    web_scraper.get_departments(112)
 
     workbook_scraper = CeecWorkbookScraper()
     workbook_scraper.get_divisions_and_rooms()
