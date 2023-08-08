@@ -9,9 +9,11 @@ import time
 
 import bs4
 import django
+import pytesseract
 import requests_cache
 import xlrd
 
+from scraper import ocr
 import third_party.cf_clearance_scraper.main as cf_clearance_scraper
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'unientrytw.settings')
@@ -21,6 +23,10 @@ import db.models
 logger = logging.getLogger(__name__)
 logger.setLevel('INFO')
 logger.addHandler(logging.StreamHandler(sys.stderr))
+
+DEPARTMENT_URL_PATTERN = re.compile(
+    r'(https://www.com.tw/cross/)?'
+    r'check_(?P<department>\d+)_NO_1_(?P<year>\d+)_0_3.html')
 
 
 def response_hook(response, *args, **kwargs) -> None:
@@ -114,6 +120,56 @@ class WwwComTwScraper:
                 logger.info(department)
                 department.save()
 
+    def get_all_students(self, year: int | str):
+        for department in db.models.Department.objects.all():
+            logger.info(department)
+            table = self._get_main_table(
+                f'https://www.com.tw/cross/'
+                f'check_{department.id}_NO_1_{year}_0_3.html')
+
+            for tr_examinee in table.find_all(
+                    lambda tr: tr.has_attr('bgcolor')):
+                tds = tr_examinee.find_all('td')
+
+                id = ocr.ocr_id(ocr.data_uri_to_image(
+                    tds[2].find('img')['src']))
+                if '?' in id:
+                    logger.warning('Invalid examinee ID: %s. Skipping...', id)
+                    continue
+                examinee, is_created = db.models.Examinee.objects.get_or_create(
+                    id=id)
+                logger.info(examinee)
+                if not is_created:
+                    continue
+
+                # TODO: Fix chinese OCR precision.
+                # name = []
+                # for name_part in tds[3]:
+                #     if isinstance(name_part, bs4.NavigableString):
+                #         name.append(name_part)
+                #     elif (isinstance(name_part, bs4.Tag) and
+                #           name_part.name == 'img'):
+                #         name.append(
+                #             pytesseract.image_to_string(
+                #                 ocr.data_uri_to_image(name_part['src']),
+                #                 'chi_tra', '--psm 10'))
+                #     else:
+                #         logger.warning('Unsupported tag')
+                # examinee.name = ''.join(name).strip(' \n')
+
+                for tr_accepted_department in tds[4].find_all('tr'):
+                    a = tr_accepted_department.find('a')
+                    match = DEPARTMENT_URL_PATTERN.match(a['href'])
+                    if not match:
+                        continue
+                    accepted_department = db.models.Department.objects.get(
+                        id=match.group('department'))
+                    examinee.accepted_departments.add(accepted_department)
+                    if tr_accepted_department.find('td').find(
+                            'img') is not None:  # Medal image
+                        examinee.final_accepted_department = accepted_department
+                examinee.save()
+
 
 class CeecWorkbookScraper:
 
@@ -143,11 +199,12 @@ class CeecWorkbookScraper:
 
 def main():
     web_scraper = WwwComTwScraper()
+    workbook_scraper = CeecWorkbookScraper()
+
     web_scraper.get_schools(112)
     web_scraper.get_departments(112)
-
-    workbook_scraper = CeecWorkbookScraper()
     workbook_scraper.get_divisions_and_rooms()
+    web_scraper.get_all_students(112)
 
 
 if __name__ == '__main__':

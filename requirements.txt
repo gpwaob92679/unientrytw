@@ -1,6 +1,8 @@
 beautifulsoup4~=4.12.2
 Django~=4.2.3
+Pillow~=10.0.0
 playwright~=1.36.0
 psycopg[binary]~=3.1.9
+pytesseract~=0.3.10
 requests-cache~=1.1.0
 xlrd~=2.0.1

@@ -43,3 +43,24 @@ class ExamRoom(models.Model):
 
     def __str__(self):
         return f'ExamRoom(id={self.id}, division={self.division})'
+
+
+class Examinee(models.Model):
+    id = models.CharField(max_length=8,
+                          primary_key=True,
+                          validators=[VALIDATE_ID])
+    name = models.TextField(blank=True)
+    exam_room = models.ForeignKey(ExamRoom, models.CASCADE)
+    accepted_departments = models.ManyToManyField(Department,
+                                                  'accepted_examinees')
+    final_accepted_department = models.ForeignKey(Department,
+                                                  models.CASCADE,
+                                                  'final_accepted_examinees',
+                                                  null=True)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.exam_room = ExamRoom.objects.get(id=self.id[:6])
+
+    def __str__(self):
+        return f'Examinee(id={self.id}, name={self.name})'
