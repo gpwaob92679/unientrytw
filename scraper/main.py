@@ -128,16 +128,12 @@ class CeecWorkbookScraper:
             if row[1].ctype == xlrd.XL_CELL_NUMBER:
                 division_id = int(row[1].value)
                 division_name = re.sub(r'^\([^()]*\)', '', row[2].value)
-                try:
-                    division = db.models.ExamDivision.objects.get(
-                        id=division_id)
-                except db.models.ExamDivision.DoesNotExist:
-                    division = db.models.ExamDivision(id=division_id,
-                                                      name=division_name)
-                    division.save()
+                division, is_created = (
+                    db.models.ExamDivision.objects.get_or_create(
+                        id=division_id, name=division_name))
                 logger.info(division)
 
-                rooms = range(int(row[3].value), int(row[4].value))
+                rooms = range(int(row[3].value), int(row[4].value) + 1)
                 logger.info('Rooms: [%s, %s]', rooms.start, rooms.stop)
                 for room_id in rooms:
                     room = db.models.ExamRoom(id=room_id, division=division)
