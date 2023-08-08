@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import re
 import sys
+import time
 
 import bs4
 import django
@@ -22,11 +23,23 @@ logger.setLevel('INFO')
 logger.addHandler(logging.StreamHandler(sys.stderr))
 
 
+def response_hook(response, *args, **kwargs) -> None:
+    if not isinstance(response, requests_cache.AnyResponse):
+        return
+    logger.info('Request URL: %s', response.url)
+    if response.from_cache:
+        logger.info('Reading from local cache')
+    else:
+        logger.info('Sending request to remote')
+        time.sleep(2)  # Throttling.
+
+
 class WwwComTwScraper:
 
     def __init__(self):
         self.session = requests_cache.CachedSession(
             expire_after=datetime.timedelta(days=1))
+        self.session.hooks['response'].append(response_hook)
 
         self.clearance_file = Path('clearance.json')
         self.get_clearance()
