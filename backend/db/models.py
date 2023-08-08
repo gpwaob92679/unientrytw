@@ -1,9 +1,13 @@
+from django.core.validators import RegexValidator
 from django.db import models
-import django.db.models
+
+VALIDATE_ID = RegexValidator(r'^\d+$', 'ID contains non-digit characters.')
 
 
 class School(models.Model):
-    id = models.CharField(max_length=3, primary_key=True)
+    id = models.CharField(max_length=3,
+                          primary_key=True,
+                          validators=[VALIDATE_ID])
     name = models.TextField()
 
     def __str__(self):
@@ -11,7 +15,9 @@ class School(models.Model):
 
 
 class Department(models.Model):
-    id = models.CharField(max_length=6, primary_key=True)
+    id = models.CharField(max_length=6,
+                          primary_key=True,
+                          validators=[VALIDATE_ID])
     name = models.TextField()
     school = models.ForeignKey(School, models.CASCADE)
 
@@ -20,7 +26,9 @@ class Department(models.Model):
 
 
 class ExamDivision(models.Model):
-    id = models.CharField(max_length=4, primary_key=True)
+    id = models.CharField(max_length=4,
+                          primary_key=True,
+                          validators=[VALIDATE_ID])
     name = models.TextField()
 
     def __str__(self):
@@ -28,7 +36,9 @@ class ExamDivision(models.Model):
 
 
 class ExamRoom(models.Model):
-    id = models.CharField(max_length=6, primary_key=True)
+    id = models.CharField(max_length=6,
+                          primary_key=True,
+                          validators=[VALIDATE_ID])
     division = models.ForeignKey(ExamDivision, models.CASCADE)
 
     def __str__(self):
